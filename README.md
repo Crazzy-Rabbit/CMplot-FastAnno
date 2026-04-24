@@ -1,5 +1,4 @@
 # CMplot-FastAnno
-# CMplot-FastAnno
 
 `CMplot-FastAnno` is a [CMplot](https://github.com/YinLiLin/CMplot) modified version focused on faster plotting and cleaner target SNP/gene annotation. Except for the new parameters and display defaults described here, other CMplot behavior is kept consistent with CMplot.
 
