@@ -1,0 +1,2 @@
+"dataset","rows","columns","tested_trait","highlighted_snps","min_pvalue","max_log10p","manhattan_threshold","top_elapsed_sec","line_auto_elapsed_sec","line_straight_elapsed_sec","line_elbow_elapsed_sec","line_none_elapsed_sec","threshold_default_elapsed_sec","scatter_elapsed_sec","nearby_elapsed_sec","multitrack_elapsed_sec"
+"F:/Shi/AI_Rewrite/CMplot/CMplot_modify/test/data/pig60K_example.tsv.gz",44580,6,"trait1",28,5.26e-09,8.27901425584626,5e-08,1.44,2.89,0.95,0.93,0.99,0.969999999999999,1.33,0.91,3.14

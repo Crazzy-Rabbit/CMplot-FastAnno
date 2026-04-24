@@ -1,0 +1,46 @@
+pig60K CMplot_modify annotation test
+Run id: 20260424_230059 
+Root: F:/Shi/AI_Rewrite/CMplot 
+Original: F:/Shi/AI_Rewrite/CMplot/R/CMplot.r 
+Modified: F:/Shi/AI_Rewrite/CMplot/CMplot_modify/R/CMplot.r 
+
+Loaded test data: F:/Shi/AI_Rewrite/CMplot/CMplot_modify/test/data/pig60K_example.tsv.gz 
+Dimensions: 44580 x 6 
+Columns: SNP, Chromosome, Position, trait1, trait2, trait3 
+
+[PASS] original_rejects_new_argument - unused argument (highlight.text.mode = "top")
+[PASS] modified_top_annotation_png - file size 59588 bytes; elapsed 1.44 sec
+[PASS] modified_line_mode_auto_png - file size 59588 bytes; elapsed 2.89 sec
+[PASS] modified_line_mode_straight_png - file size 63915 bytes; elapsed 0.95 sec
+[PASS] modified_line_mode_elbow_png - file size 59588 bytes; elapsed 0.93 sec
+[PASS] modified_line_mode_none_png - file size 49286 bytes; elapsed 0.99 sec
+[PASS] modified_threshold_default_size_png - file size 37909 bytes; elapsed 0.97 sec
+[PASS] modified_scatter_compatibility_png - file size 56084 bytes; elapsed 1.33 sec
+[PASS] modified_nearby_annotation_png - file size 56187 bytes; elapsed 0.91 sec
+[PASS] modified_multitrack_top_annotation_png - file size 145106 bytes; elapsed 3.14 sec
+
+Results written to: F:/Shi/AI_Rewrite/CMplot/CMplot_modify/test/results/pig60K_annotation_20260424_230059 
+Report: F:/Shi/AI_Rewrite/CMplot/CMplot_modify/test/results/pig60K_annotation_20260424_230059/REPORT.md 
+                                     test status
+1           original_rejects_new_argument   PASS
+2             modified_top_annotation_png   PASS
+3             modified_line_mode_auto_png   PASS
+4         modified_line_mode_straight_png   PASS
+5            modified_line_mode_elbow_png   PASS
+6             modified_line_mode_none_png   PASS
+7     modified_threshold_default_size_png   PASS
+8      modified_scatter_compatibility_png   PASS
+9          modified_nearby_annotation_png   PASS
+10 modified_multitrack_top_annotation_png   PASS
+                                         details
+1  unused argument (highlight.text.mode = "top")
+2        file size 59588 bytes; elapsed 1.44 sec
+3        file size 59588 bytes; elapsed 2.89 sec
+4        file size 63915 bytes; elapsed 0.95 sec
+5        file size 59588 bytes; elapsed 0.93 sec
+6        file size 49286 bytes; elapsed 0.99 sec
+7        file size 37909 bytes; elapsed 0.97 sec
+8        file size 56084 bytes; elapsed 1.33 sec
+9        file size 56187 bytes; elapsed 0.91 sec
+10      file size 145106 bytes; elapsed 3.14 sec
+All tests passed.
