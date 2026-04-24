@@ -412,22 +412,3 @@ CMplot(
 Result:
 
 ![Multi-track top annotation](test/results/Multi-tracks_Manhtn.pig60K_multitrack_top_annotation.png)
-
-## 15. Test Summary
-
-All new-feature checks passed:
-
-- top annotation from separate annotation file
-- line modes `auto`, `straight`, `elbow`, and `none`
-- three-layer annotation lanes
-- default threshold with unchanged point size
-- nearby annotation
-- multi-track top annotation
-
-The latest report is written directly to:
-
-```text
-test/results/annotation_REPORT.md
-```
-
-Existing CMplot features are not documented here because this README focuses only on CMplot-FastAnno additions.
