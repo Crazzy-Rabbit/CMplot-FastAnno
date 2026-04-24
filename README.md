@@ -2,32 +2,27 @@
 
 `CMplot-FastAnno` is a [CMplot](https://github.com/YinLiLin/CMplot) modified version focused on faster plotting and cleaner target SNP/gene annotation. Except for the new parameters and display defaults described here, other CMplot behavior is kept consistent with CMplot.
 
-The bundled test folder is inside this modified version:
+All examples below can be run from the `test` directory.
 
-```text
-CMplot-FastAnno/test
-```
+## 1. New Features
 
-All examples below can be run from the `CMplot-FastAnno` directory.
+- Faster preprocessing and plotting for large GWAS-like tables.
+- External annotation table input through `annotation.file`.
+- Top annotation mode for clean SNP/gene labels above the plot.
+- Stronger label collision avoidance for top labels.
+- Multi-layer annotation lanes through `highlight.text.lanes`.
+- Connector styles through `highlight.text.line.mode = "auto"`, `"straight"`, `"elbow"`, or `"none"`.
+- Nearby annotation mode for local labels beside target points.
+- Annotated points default to red and keep the normal point size.
+- Manhattan plots use `5e-8` as the default threshold when `threshold` is omitted.
+- Threshold-exceeding points are not enlarged unless `amplify = TRUE`.
+- Rectangular Manhattan x-axis shows chromosome numbers only, with `Chromosome` as the axis title.
 
-## 1. What Changed
+Feature and optimization comments are marked directly in [R/CMplot.r](R/CMplot.r).
 
-Main speed and plotting changes:
+## 2. Main GWAS Data Format
 
-- Faster visible-point filtering, marker-density counting, chromosome coordinate offset calculation, and QQ confidence interval calculation.
-- Rectangular Manhattan plots use chromosome numbers on the x-axis and `xlab = "Chromosome"` as the axis title.
-- Scatter points start from the x-axis without the extra blank gap.
-- Manhattan plots use `threshold = 5e-8` by default when `threshold` is omitted.
-- Threshold-exceeding points keep the original point size unless `amplify = TRUE`.
-- Annotated target points are red by default and keep the regular point size unless `highlight.col` or `highlight.cex` is changed.
-- New top/nearby annotation modes support GWASLab-style label layouts with straight, elbow, automatic, or no connector lines.
-- New `annotation.file` input lets users supply SNP/gene labels from a table.
-
-Optimization and feature comments are marked directly in [R/CMplot.r](R/CMplot.r).
-
-## 2. Main Input Data: `Pmap`
-
-`CMplot()` expects `Pmap` to be an R `data.frame` or matrix-like object. If the data are stored as TSV, CSV, or gzipped text, read the file first and pass the resulting table to `CMplot()`.
+The main data table follows the original CMplot layout. It should contain only marker coordinates and trait values. Annotation labels should be supplied in a separate annotation file.
 
 Required column order:
 
@@ -38,7 +33,7 @@ Required column order:
 | 3 | Yes | Position | numeric base-pair position |
 | 4+ | Yes | Trait p-values or scores | numeric; one column per trait |
 
-Recommended column names:
+Example:
 
 ```text
 SNP	Chromosome	Position	trait1	trait2	trait3
@@ -46,36 +41,37 @@ MARC0066784	8	53910480	5.26e-09	4.97e-01	8.19e-01
 MARC0040492	8	80539938	6.87e-08	7.14e-01	6.37e-01
 ```
 
-Important rules:
-
-- For raw p-values, use `LOG10 = TRUE`.
-- If trait columns are already `-log10(P)`, use `LOG10 = FALSE`.
-- Missing p-values can be `NA`; non-positive p-values are not valid with `LOG10 = TRUE`.
-- Multi-trait and multi-track plots use all trait columns after `SNP`, `Chromosome`, and `Position`.
-
-Bundled test data:
+Read the bundled test data:
 
 ```r
-pmap <- read.delim(
+gwas_data <- read.delim(
   gzfile("test/data/pig60K_example.tsv.gz"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 ```
 
-## 3. Annotation File Input
+Rules:
 
-`annotation.file` can be a file path or an R `data.frame`. It is used when target SNP/gene labels should be controlled from an external table.
+- Use `LOG10 = TRUE` for raw p-values.
+- Use `LOG10 = FALSE` when trait columns are already `-log10(P)`.
+- Missing p-values can be `NA`.
+- With `LOG10 = TRUE`, p-values must be positive.
+- Multi-trait and multi-track plots use all trait columns after `SNP`, `Chromosome`, and `Position`.
+
+## 3. Annotation File Format
+
+The annotation file is independent from the main GWAS data table.
 
 Required and optional columns:
 
 | Column | Required | Meaning |
 | --- | --- | --- |
-| SNP | Yes | Marker ID; must match the first column of `Pmap` |
-| Label | Yes | Text drawn on the plot |
-| Trait | Optional | Trait column name in `Pmap`; use for trait-specific annotation |
+| SNP | Yes | Marker ID matching the first column of the main GWAS table |
+| Label | Yes | Text drawn on the plot, such as SNP ID or gene name |
+| Trait | Optional | Trait column name; use it for trait-specific annotation |
 
-Example annotation table:
+Example:
 
 ```text
 SNP	Label	Trait
@@ -83,7 +79,7 @@ MARC0066784	RDH10	trait1
 MARC0040492	FAM172A	trait1
 ```
 
-Column names can be customized:
+Use custom column names when needed:
 
 ```r
 annotation.file = "test/data/pig60K_trait1_annotation_targets.tsv"
@@ -94,88 +90,61 @@ annotation.trait.col = "Trait"
 
 Rules:
 
-- If `Trait` is omitted or `annotation.trait.col = NULL`, matching SNPs are annotated wherever they appear.
-- If `Trait` is provided, values must match trait column names in `Pmap`.
-- TSV and CSV files are supported. Set `annotation.sep` if automatic delimiter detection is not enough.
+- If `Trait` is omitted, matching SNPs are annotated wherever they appear.
+- If `Trait` is provided, values must match trait column names in the main GWAS table.
+- TSV and CSV files are supported.
+- Use `annotation.sep` if delimiter detection is not enough.
 
-## 4. Direct Highlight Input
-
-Original CMplot-style `highlight` and `highlight.text` still work.
-
-Single-trait input:
-
-```r
-highlight = c("MARC0066784", "MARC0040492")
-highlight.text = c("RDH10", "FAM172A")
-```
-
-Multi-trait input:
-
-```r
-highlight = list(
-  c("MARC0066784", "MARC0040492"),
-  c("ASGA0039359")
-)
-highlight.text = list(
-  c("RDH10", "FAM172A"),
-  c("GENE2")
-)
-```
-
-For direct input, marker IDs in `highlight` must match the first column of `Pmap`. Use a list when each trait needs a different target set.
-
-## 5. New Annotation Parameters
+## 4. New Annotation Parameters
 
 ```r
 highlight.text.mode = c("scatter", "top", "nearby")
 highlight.text.line.mode = c("auto", "straight", "elbow", "none")
 highlight.text.side = c("auto", "left", "right", "alternate")
+
+highlight.text.optimize = TRUE
+highlight.text.lanes = 1
+highlight.text.lane.gap = 0.055
+highlight.text.min.gap = 0.004
 ```
 
-Main display controls:
+Important controls:
 
 | Parameter | Default | Meaning |
 | --- | --- | --- |
 | `highlight.text.mode` | `"scatter"` | legacy scatter labels, top labels, or nearby labels |
-| `highlight.text.line.mode` | `"auto"` | connector style for labels |
-| `highlight.text.side` | `"auto"` | preferred label displacement direction |
+| `highlight.text.line.mode` | `"auto"` | connector style for top/nearby labels |
+| `highlight.text.optimize` | `TRUE` | reduce top-label collisions and connector clutter |
+| `highlight.text.lanes` | `1` | number of top annotation label lanes |
+| `highlight.text.lane.gap` | `0.055` | vertical spacing between annotation lanes |
+| `highlight.text.min.gap` | `0.004` | minimum x-axis spacing between top labels |
 | `highlight.col` | `"red"` | annotated target point color |
 | `highlight.cex` | `1` | annotated point size multiplier |
-| `highlight.text.cex` | original CMplot value | annotation text size |
 | `highlight.text.top.margin` | `8` | top margin reserved for top labels |
-| `highlight.text.top.space` | `0.06` | vertical spacing between plot and top labels |
 
-Annotated points are red by default:
+Annotated points default to red:
 
 ```r
 highlight.col = "red"
 ```
 
-Custom colors can be a single color, a vector, or a per-trait list:
-
-```r
-highlight.col = "#4f7fbd"
-highlight.col = c("#d62728", "#1f77b4")
-highlight.col = list(c("#d62728", "#1f77b4"), c("#2ca02c"))
-```
-
-Annotated points keep regular point size by default:
+Annotated points keep regular point size:
 
 ```r
 highlight.cex = 1
 ```
 
-Use `highlight.cex` as a multiplier when target points should be larger or smaller.
+Use `highlight.cex` as a multiplier when annotated points should be larger or smaller.
 
-## 6. Threshold Inputs
+## 5. Threshold Behavior
 
-For Manhattan plots, if `threshold` is omitted, CMplot-FastAnno uses:
+If `threshold` is omitted for Manhattan plots, CMplot-FastAnno uses:
 
 ```r
 threshold = 5e-8
 ```
 
-User-defined thresholds keep the original CMplot input style:
+User-defined thresholds keep the original CMplot style:
 
 ```r
 threshold = 5e-8
@@ -183,7 +152,7 @@ threshold = c(5e-8, 1e-6)
 threshold = list(5e-8, c(5e-8, 1e-6))
 ```
 
-To draw no threshold line:
+Draw no threshold line:
 
 ```r
 threshold = NULL
@@ -195,63 +164,62 @@ Threshold-hit point enlargement is off by default:
 amplify = FALSE
 ```
 
-To restore CMplot-style enlarged threshold hits:
+Restore enlarged threshold hits:
 
 ```r
 amplify = TRUE
 signal.cex = 1.5
 ```
 
-## 7. Test Data And Scripts
+## 6. Test Folder
 
-Test data and scripts are under `CMplot_modify/test`.
+Files:
 
 | File | Purpose |
 | --- | --- |
-| `test/data/pig60K_example.tsv.gz` | Main `Pmap` input table |
-| `test/data/pig60K_trait1_annotation_targets.tsv` | Annotation targets for `trait1` |
-| `test/data/pig60K_trait1_top_snps.csv` | Selected top SNPs used by tests |
-| `test/create_test_data.R` | Recreates bundled pig60K test inputs |
-| `test/test_pig60k_annotation.R` | Generates annotation examples and result figures |
-| `test/test_cmplot_fastanno_compatibility.R` | Runs smoke tests for existing CMplot functions |
+| `test/data/pig60K_example.tsv.gz` | Main GWAS test table |
+| `test/data/pig60K_trait1_annotation_targets.tsv` | Separate annotation file |
+| `test/data/pig60K_trait1_top_snps.csv` | Selected top SNPs for examples |
+| `test/create_test_data.R` | Recreate test input files |
+| `test/test_pig60k_annotation.R` | Generate new-feature example figures |
 
-Run from `CMplot_modify`:
+All generated result files are written directly into:
+
+```text
+test/results
+```
+
+No subfolders are created inside `test/results`.
+
+Run:
 
 ```r
 Rscript test/test_pig60k_annotation.R
-Rscript test/test_cmplot_fastanno_compatibility.R
 ```
 
-Latest bundled result folders:
-
-```text
-test/results/pig60K_annotation_20260424_230059
-test/results/cmplot_fastanno_compatibility_20260424_230126
-```
-
-## 8. Basic Setup
+## 7. Basic Setup For Examples
 
 ```r
 source("R/CMplot.r")
 
-pmap <- read.delim(
+gwas_data <- read.delim(
   gzfile("test/data/pig60K_example.tsv.gz"),
   stringsAsFactors = FALSE,
   check.names = FALSE
 )
 
 trait_name <- "trait1"
-threshold <- 5e-8
 annotation_file <- "test/data/pig60K_trait1_annotation_targets.tsv"
+threshold <- 5e-8
 ```
 
-## 9. Top Annotation From A File
+## 8. Top Annotation From Separate File
 
-This is the recommended mode for clean GWASLab-style target SNP/gene labels. Labels are placed above the plot and connected to their target points.
+This mode reads target SNP labels from `annotation.file`, places labels above the plot, and connects them to target points.
 
 ```r
 CMplot(
-  pmap[, c("SNP", "Chromosome", "Position", trait_name)],
+  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
   plot.type = "m",
   LOG10 = TRUE,
   threshold = threshold,
@@ -261,8 +229,7 @@ CMplot(
   annotation.trait.col = "Trait",
   highlight.text.mode = "top",
   highlight.text.line.mode = "auto",
-  highlight.text.col = "black",
-  highlight.text.cex = 0.9,
+  highlight.text.optimize = TRUE,
   file = "png",
   file.name = "pig60K_trait1_top_annotation"
 )
@@ -270,26 +237,15 @@ CMplot(
 
 Result:
 
-![Top annotation from file](test/results/pig60K_annotation_20260424_230059/Rect_Manhtn.pig60K_trait1_top_annotation.png)
+![Top annotation from file](test/results/Rect_Manhtn.pig60K_trait1_top_annotation.png)
 
-What to notice:
+## 9. Stronger Collision Avoidance
 
-- Annotated points are red by default.
-- The x-axis shows chromosome numbers only.
-- The x-axis title is placed below the tick labels without overlap.
-- The point cloud starts from the x-axis without the previous lower gap.
-
-## 10. Connector Line Modes
-
-`highlight.text.line.mode` controls how top labels connect to target points.
-
-### `highlight.text.line.mode = "auto"`
-
-Automatically chooses straight or elbow-like connectors based on label/point alignment.
+`highlight.text.optimize = TRUE` globally spaces top labels along the x-axis before drawing connectors. This reduces label overlap and keeps connectors more orderly.
 
 ```r
 CMplot(
-  pmap[, c("SNP", "Chromosome", "Position", trait_name)],
+  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
   plot.type = "m",
   LOG10 = TRUE,
   threshold = threshold,
@@ -298,117 +254,101 @@ CMplot(
   annotation.label.col = "Label",
   annotation.trait.col = "Trait",
   highlight.text.mode = "top",
+  highlight.text.optimize = TRUE,
+  highlight.text.min.gap = 0.006,
   highlight.text.line.mode = "auto",
   file = "png",
-  file.name = "pig60K_trait1_line_auto"
-)
-```
-
-![Line mode auto](test/results/pig60K_annotation_20260424_230059/Rect_Manhtn.pig60K_trait1_line_auto.png)
-
-### `highlight.text.line.mode = "straight"`
-
-Draws direct straight connectors.
-
-```r
-CMplot(
-  pmap[, c("SNP", "Chromosome", "Position", trait_name)],
-  plot.type = "m",
-  LOG10 = TRUE,
-  threshold = threshold,
-  annotation.file = annotation_file,
-  annotation.snp.col = "SNP",
-  annotation.label.col = "Label",
-  annotation.trait.col = "Trait",
-  highlight.text.mode = "top",
-  highlight.text.line.mode = "straight",
-  file = "png",
-  file.name = "pig60K_trait1_line_straight"
-)
-```
-
-![Line mode straight](test/results/pig60K_annotation_20260424_230059/Rect_Manhtn.pig60K_trait1_line_straight.png)
-
-### `highlight.text.line.mode = "elbow"`
-
-Always uses the upper horizontal/diagonal arm plus vertical drop style.
-
-```r
-CMplot(
-  pmap[, c("SNP", "Chromosome", "Position", trait_name)],
-  plot.type = "m",
-  LOG10 = TRUE,
-  threshold = threshold,
-  annotation.file = annotation_file,
-  annotation.snp.col = "SNP",
-  annotation.label.col = "Label",
-  annotation.trait.col = "Trait",
-  highlight.text.mode = "top",
-  highlight.text.line.mode = "elbow",
-  file = "png",
-  file.name = "pig60K_trait1_line_elbow"
-)
-```
-
-![Line mode elbow](test/results/pig60K_annotation_20260424_230059/Rect_Manhtn.pig60K_trait1_line_elbow.png)
-
-### `highlight.text.line.mode = "none"`
-
-Draws labels and highlighted points without connector lines.
-
-```r
-CMplot(
-  pmap[, c("SNP", "Chromosome", "Position", trait_name)],
-  plot.type = "m",
-  LOG10 = TRUE,
-  threshold = threshold,
-  annotation.file = annotation_file,
-  annotation.snp.col = "SNP",
-  annotation.label.col = "Label",
-  annotation.trait.col = "Trait",
-  highlight.text.mode = "top",
-  highlight.text.line.mode = "none",
-  file = "png",
-  file.name = "pig60K_trait1_line_none"
-)
-```
-
-![Line mode none](test/results/pig60K_annotation_20260424_230059/Rect_Manhtn.pig60K_trait1_line_none.png)
-
-## 11. Legacy Scatter Annotation
-
-`highlight.text.mode = "scatter"` keeps the original CMplot-style label behavior.
-
-```r
-top_hits <- read.csv("test/data/pig60K_trait1_top_snps.csv", stringsAsFactors = FALSE)
-
-CMplot(
-  pmap[, c("SNP", "Chromosome", "Position", trait_name)],
-  plot.type = "m",
-  LOG10 = TRUE,
-  threshold = threshold,
-  highlight = top_hits$SNP,
-  highlight.text = top_hits$SNP,
-  highlight.text.mode = "scatter",
-  highlight.col = "#4f7fbd",
-  file = "png",
-  file.name = "pig60K_trait1_scatter_annotation"
+  file.name = "pig60K_trait1_top_annotation"
 )
 ```
 
 Result:
 
-![Scatter annotation](test/results/pig60K_annotation_20260424_230059/Rect_Manhtn.pig60K_trait1_scatter_annotation.png)
+![Collision avoidance](test/results/Rect_Manhtn.pig60K_trait1_top_annotation.png)
+
+## 10. Multi-Layer Annotation Lanes
+
+Use `highlight.text.lanes` when many labels compete for the same top region. Labels are first collision-avoided on the x-axis, then distributed across lanes.
+
+```r
+CMplot(
+  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
+  plot.type = "m",
+  LOG10 = TRUE,
+  threshold = threshold,
+  annotation.file = annotation_file,
+  annotation.snp.col = "SNP",
+  annotation.label.col = "Label",
+  annotation.trait.col = "Trait",
+  highlight.text.mode = "top",
+  highlight.text.optimize = TRUE,
+  highlight.text.lanes = 3,
+  highlight.text.lane.gap = 0.055,
+  highlight.text.min.gap = 0.006,
+  highlight.text.line.mode = "auto",
+  highlight.text.top.margin = 12,
+  file = "png",
+  file.name = "pig60K_trait1_lanes3_annotation"
+)
+```
+
+Result:
+
+![Three-lane annotation](test/results/Rect_Manhtn.pig60K_trait1_lanes3_annotation.png)
+
+## 11. Connector Line Modes
+
+`highlight.text.line.mode` controls how top labels connect to target points.
+
+### `auto`
+
+Uses a straight connector when the label is nearly aligned with the point; otherwise uses an elbow-style connector.
+
+```r
+highlight.text.line.mode = "auto"
+```
+
+![Line mode auto](test/results/Rect_Manhtn.pig60K_trait1_line_auto.png)
+
+### `straight`
+
+Draws direct straight connectors.
+
+```r
+highlight.text.line.mode = "straight"
+```
+
+![Line mode straight](test/results/Rect_Manhtn.pig60K_trait1_line_straight.png)
+
+### `elbow`
+
+Always uses the upper arm plus vertical drop style.
+
+```r
+highlight.text.line.mode = "elbow"
+```
+
+![Line mode elbow](test/results/Rect_Manhtn.pig60K_trait1_line_elbow.png)
+
+### `none`
+
+Draws labels and target points without connector lines.
+
+```r
+highlight.text.line.mode = "none"
+```
+
+![Line mode none](test/results/Rect_Manhtn.pig60K_trait1_line_none.png)
 
 ## 12. Nearby Annotation
 
-`highlight.text.mode = "nearby"` places labels near the target points. This is useful when only a few targets need local labels.
+Nearby mode places labels beside target points instead of above the whole plot.
 
 ```r
 top_hits <- read.csv("test/data/pig60K_trait1_top_snps.csv", stringsAsFactors = FALSE)
 
 CMplot(
-  pmap[, c("SNP", "Chromosome", "Position", trait_name)],
+  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
   plot.type = "m",
   LOG10 = TRUE,
   threshold = threshold,
@@ -417,7 +357,6 @@ CMplot(
   highlight.text.mode = "nearby",
   highlight.text.side = "auto",
   highlight.text.line.mode = "auto",
-  highlight.col = "#4f7fbd",
   file = "png",
   file.name = "pig60K_trait1_nearby_annotation"
 )
@@ -425,15 +364,15 @@ CMplot(
 
 Result:
 
-![Nearby annotation](test/results/pig60K_annotation_20260424_230059/Rect_Manhtn.pig60K_trait1_nearby_annotation.png)
+![Nearby annotation](test/results/Rect_Manhtn.pig60K_trait1_nearby_annotation.png)
 
 ## 13. Default Threshold And Default Point Size
 
-When `threshold` is omitted in a Manhattan plot, `5e-8` is used automatically. Points above the threshold keep their original size unless `amplify = TRUE`.
+This example omits `threshold`. CMplot-FastAnno draws the default `5e-8` line, and threshold-exceeding points keep their normal size because `amplify = FALSE`.
 
 ```r
 CMplot(
-  pmap[, c("SNP", "Chromosome", "Position", trait_name)],
+  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
   plot.type = "m",
   LOG10 = TRUE,
   file = "png",
@@ -443,17 +382,17 @@ CMplot(
 
 Result:
 
-![Default threshold and size](test/results/pig60K_annotation_20260424_230059/Rect_Manhtn.pig60K_trait1_threshold_default_size.png)
+![Default threshold and size](test/results/Rect_Manhtn.pig60K_trait1_threshold_default_size.png)
 
 ## 14. Multi-Track Annotation
 
-Top annotation also works with `multracks = TRUE`. In multi-track plots, annotated points are red by default and keep the regular multi-track point size unless `highlight.col` or `highlight.cex` is changed.
+Top annotation also works with `multracks = TRUE`. Annotated points remain red and keep normal point size by default.
 
 ```r
 top_hits <- read.csv("test/data/pig60K_trait1_top_snps.csv", stringsAsFactors = FALSE)
 
 CMplot(
-  pmap,
+  gwas_data,
   plot.type = "m",
   multracks = TRUE,
   LOG10 = TRUE,
@@ -462,6 +401,7 @@ CMplot(
   highlight.text = top_hits$SNP,
   highlight.text.mode = "top",
   highlight.text.line.mode = "auto",
+  highlight.text.optimize = TRUE,
   highlight.col = "red",
   highlight.cex = 1,
   file = "png",
@@ -471,4 +411,23 @@ CMplot(
 
 Result:
 
-![Multi-track top annotation](test/results/pig60K_annotation_20260424_230059/Multi-tracks_Manhtn.pig60K_multitrack_top_annotation.png)
+![Multi-track top annotation](test/results/Multi-tracks_Manhtn.pig60K_multitrack_top_annotation.png)
+
+## 15. Test Summary
+
+All new-feature checks passed:
+
+- top annotation from separate annotation file
+- line modes `auto`, `straight`, `elbow`, and `none`
+- three-layer annotation lanes
+- default threshold with unchanged point size
+- nearby annotation
+- multi-track top annotation
+
+The latest report is written directly to:
+
+```text
+test/results/annotation_REPORT.md
+```
+
+Existing CMplot features are not documented here because this README focuses only on CMplot-FastAnno additions.
