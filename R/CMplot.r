@@ -23,7 +23,6 @@
 #
 # Generated: 2026-02-25
 # Tested with: pig/pmap_Direction112_layers4_layers5.csv (17,810,683 SNPs)
-
 #
 # Added features in CMplot_modify:
 # 1. Annotation layout modes for highlighted SNPs/genes:
@@ -38,6 +37,7 @@
 # 5. Manhattan plots use 5e-8 as the default threshold when threshold is omitted.
 #    Users can still set threshold exactly as in CMplot, or pass threshold=NULL explicitly.
 # 6. Rectangular Manhattan x-axis labels show chromosome numbers only, with xlab as the axis title.
+# 7. Top annotations support collision avoidance and multi-lane label placement.
 
 CMplot <- function(
     Pmap,
@@ -108,6 +108,11 @@ CMplot <- function(
     highlight.text.arrow.length=0.06,
     highlight.text.top.space=0.06,
     highlight.text.top.margin=8,
+    # [FEATURE] Optimized top-label placement reduces label collisions and connector crossings.
+    highlight.text.optimize=TRUE,
+    highlight.text.lanes=1,
+    highlight.text.lane.gap=0.055,
+    highlight.text.min.gap=0.004,
     # [FEATURE] Optional annotation table; columns can be auto-detected or set with annotation.*.col.
     annotation.file=NULL,
     annotation.snp.col=NULL,
@@ -176,6 +181,10 @@ CMplot <- function(
         arrow=TRUE,
         arrow.length=0.06,
         top.space=0.06,
+        optimize=highlight.text.optimize,
+        lanes=highlight.text.lanes,
+        lane.gap=highlight.text.lane.gap,
+        min.gap=highlight.text.min.gap,
         xlim=c(-Inf, Inf),
         ylim=c(-Inf, Inf)
     )
@@ -294,7 +303,7 @@ CMplot <- function(
         }
 
         # [FEATURE] Spread top labels in target order so connector arms do not cross unnecessarily.
-        spread_label_x <- function(x, words, cex, xlim, anchor.x=NULL) {
+        spread_label_x <- function(x, words, cex, xlim, anchor.x=NULL, min.gap=0.004) {
             n <- length(x)
             if(n <= 1L || any(!is.finite(xlim))) return(pmin(pmax(x, xlim[1]), xlim[2]))
             if(is.null(anchor.x)) anchor.x <- x
@@ -303,7 +312,7 @@ CMplot <- function(
             half_width[!is.finite(half_width)] <- 0
             xrange <- diff(xlim)
             auto_half_gap <- xrange / max(n * 2.4, 80)
-            pad <- max(xrange * 0.002, auto_half_gap, max(half_width, na.rm=TRUE) * 0.4, na.rm=TRUE)
+            pad <- max(xrange * max(min.gap, 0), auto_half_gap, max(half_width, na.rm=TRUE) * 0.4, na.rm=TRUE)
             half_width <- half_width + pad
 
             ord <- order(anchor.x, x)
@@ -330,6 +339,54 @@ CMplot <- function(
             out <- numeric(n)
             out[ord] <- pos
             out
+        }
+
+        # [FEATURE] Assign top labels to non-overlapping lanes while preserving x-order within each lane.
+        assign_top_label_lanes <- function(anchor.x, preferred.x, words, cex, xlim, lanes=1L, min.gap=0.004, optimize=TRUE) {
+            n <- length(anchor.x)
+            lanes <- max(1L, min(as.integer(lanes[1]), max(1L, n)))
+            if(!isTRUE(optimize) || n <= 1L) lanes <- 1L
+            label.lane <- rep(1L, n)
+            if(lanes > 1L && all(is.finite(xlim))){
+                xrange <- diff(xlim)
+                span <- suppressWarnings(strheight(words, cex=cex))
+                span[!is.finite(span)] <- 0
+                span <- span + max(xrange * max(min.gap, 0), 0)
+                ord <- order(anchor.x, preferred.x)
+                lane.right <- rep(-Inf, lanes)
+                lane.count <- integer(lanes)
+                for(ii in ord){
+                    costs <- rep(Inf, lanes)
+                    for(ln in seq_len(lanes)){
+                        last.right <- lane.right[ln]
+                        candidate <- preferred.x[ii]
+                        if(is.finite(last.right)){
+                            candidate <- max(candidate, last.right + span[ii])
+                        }
+                        overflow <- max(0, candidate + span[ii] / 2 - xlim[2])
+                        costs[ln] <- abs(candidate - preferred.x[ii]) + overflow * 1000 +
+                            lane.count[ln] * xrange * 0.0005 + (ln - 1L) * xrange * 0.0002
+                    }
+                    ln <- which.min(costs)
+                    label.lane[ii] <- ln
+                    lane.count[ln] <- lane.count[ln] + 1L
+                    lane.right[ln] <- max(lane.right[ln], preferred.x[ii] + span[ii] / 2, na.rm=TRUE)
+                }
+            }
+            if(lanes > 1L){
+                # [FEATURE] Cross-lane labels are still globally spaced on x because vertical labels
+                # can visually collide even when their lane baselines differ.
+                label.x <- spread_label_x(preferred.x, as.character(words), cex,
+                    xlim=xlim, anchor.x=anchor.x, min.gap=min.gap)
+            }else{
+                label.x <- preferred.x
+                for(ln in sort(unique(label.lane))){
+                    idx <- which(label.lane == ln)
+                    label.x[idx] <- spread_label_x(preferred.x[idx], as.character(words[idx]), cex[idx],
+                        xlim=xlim, anchor.x=anchor.x[idx], min.gap=min.gap)
+                }
+            }
+            list(x=label.x, lane=label.lane, lanes=lanes)
         }
 
         if(!is.null(words)){
@@ -427,22 +484,31 @@ CMplot <- function(
                 text.cex <- text.cex * top.cex
                 yrange <- diff(ylim)
                 if(!is.finite(yrange) || yrange <= 0) yrange <- 1
+                xrange <- diff(xlim)
+                if(!is.finite(xrange) || xrange <= 0) xrange <- 1
                 top.space <- max(top.space, 0)
-                line.top <- ylim[2] + yrange * top.space * 0.9
-                text.y <- ylim[2] + yrange * top.space * 1.45
+                lane.gap <- max(lane.gap, 0)
+                min.gap <- max(min.gap, 0)
+                lanes <- max(1L, as.integer(lanes[1]))
                 side.vec <- normalize_label_side(side, length(x1), x=x1, xlim=xlim)
                 preferred.x <- x1
-                preferred.x[side.vec == "left"] <- x1[side.vec == "left"] - diff(xlim) * 0.035
-                preferred.x[side.vec == "right"] <- x1[side.vec == "right"] + diff(xlim) * 0.035
-                if(!is.finite(diff(xlim))) preferred.x <- x1
-                label.x <- spread_label_x(preferred.x, as.character(words), text.cex, xlim, anchor.x=x1)
+                preferred.x[side.vec == "left"] <- x1[side.vec == "left"] - xrange * 0.035
+                preferred.x[side.vec == "right"] <- x1[side.vec == "right"] + xrange * 0.035
+                if(any(!is.finite(xlim))) preferred.x <- x1
+                lane.layout <- assign_top_label_lanes(x1, preferred.x, as.character(words), text.cex,
+                    xlim=xlim, lanes=lanes, min.gap=min.gap, optimize=optimize)
+                label.x <- lane.layout$x
+                label.lane <- lane.layout$lane
+                lane.offset <- (label.lane - 1L) * lane.gap
+                line.top <- ylim[2] + yrange * (top.space * 0.9 + lane.offset)
+                text.y <- ylim[2] + yrange * (top.space * 1.45 + lane.offset)
                 line.col <- rep(line.col, length.out=length(x1))
                 line.lwd <- rep(line.lwd, length.out=length(x1))
                 line.lty <- rep(line.lty, length.out=length(x1))
                 line.bend <- max(line.bend, 0)
-                arm.y <- ylim[2] + yrange * top.space * 0.25
+                arm.y <- ylim[2] + yrange * (top.space * 0.25 + lane.offset * 0.35)
                 arm.y <- pmin(line.top, pmax(ylim[2], arm.y))
-                straight.tol <- diff(xlim) * 0.0025
+                straight.tol <- xrange * 0.0025
                 if(!is.finite(straight.tol) || straight.tol <= 0) straight.tol <- 0
                 use.straight <- abs(label.x - x1) <= straight.tol
                 if(line.mode == "straight") use.straight <- rep(TRUE, length(x1))
@@ -454,18 +520,18 @@ CMplot <- function(
                 }else if(isTRUE(arrow)){
                     straight.idx <- which(use.straight)
                     if(length(straight.idx)){
-                        arrows(label.x[straight.idx], rep(line.top, length(straight.idx)),
+                        arrows(label.x[straight.idx], line.top[straight.idx],
                             x1[straight.idx], y1[straight.idx],
                             length=arrow.length, angle=15, code=2,
                             col=line.col[straight.idx], lwd=line.lwd[straight.idx],
                             lty=line.lty[straight.idx], xpd=NA)
                     }
                     if(length(elbow.idx)){
-                        segments(label.x[elbow.idx], rep(line.top, length(elbow.idx)),
-                            x1[elbow.idx], rep(arm.y, length(elbow.idx)),
+                        segments(label.x[elbow.idx], line.top[elbow.idx],
+                            x1[elbow.idx], arm.y[elbow.idx],
                             col=line.col[elbow.idx], lwd=line.lwd[elbow.idx],
                             lty=line.lty[elbow.idx], xpd=NA)
-                        arrows(x1[elbow.idx], rep(arm.y, length(elbow.idx)),
+                        arrows(x1[elbow.idx], arm.y[elbow.idx],
                             x1[elbow.idx], y1[elbow.idx],
                             length=arrow.length, angle=15, code=2,
                             col=line.col[elbow.idx], lwd=line.lwd[elbow.idx],
@@ -474,24 +540,24 @@ CMplot <- function(
                 }else{
                     straight.idx <- which(use.straight)
                     if(length(straight.idx)){
-                        segments(label.x[straight.idx], rep(line.top, length(straight.idx)),
+                        segments(label.x[straight.idx], line.top[straight.idx],
                             x1[straight.idx], y1[straight.idx],
                             col=line.col[straight.idx], lwd=line.lwd[straight.idx],
                             lty=line.lty[straight.idx], xpd=NA)
                     }
                     if(length(elbow.idx)){
-                        segments(label.x[elbow.idx], rep(line.top, length(elbow.idx)),
-                            x1[elbow.idx], rep(arm.y, length(elbow.idx)),
+                        segments(label.x[elbow.idx], line.top[elbow.idx],
+                            x1[elbow.idx], arm.y[elbow.idx],
                             col=line.col[elbow.idx], lwd=line.lwd[elbow.idx],
                             lty=line.lty[elbow.idx], xpd=NA)
-                        segments(x1[elbow.idx], rep(arm.y, length(elbow.idx)),
+                        segments(x1[elbow.idx], arm.y[elbow.idx],
                             x1[elbow.idx], y1[elbow.idx],
                             col=line.col[elbow.idx], lwd=line.lwd[elbow.idx],
                             lty=line.lty[elbow.idx], xpd=NA)
                     }
                 }
                 draw_highlight_points(x1, y1, pch, type, point.col, point.cex, ylim)
-                text(label.x, rep(text.y, length(x1)), as.character(words),
+                text(label.x, text.y, as.character(words),
                     srt=90, adj=c(0, 0.5), xpd=NA, cex=text.cex,
                     col=text.col, font=text.font)
                 return(invisible(NULL))
@@ -928,6 +994,9 @@ CMplot <- function(
     file <- match.arg(file)
     highlight.text.mode <- match.arg(highlight.text.mode)
     highlight.text.line.mode <- match.arg(highlight.text.line.mode)
+    highlight.text.lanes <- max(1L, as.integer(highlight.text.lanes[1]))
+    highlight.text.lane.gap <- max(0, as.numeric(highlight.text.lane.gap[1]))
+    highlight.text.min.gap <- max(0, as.numeric(highlight.text.min.gap[1]))
     threshold.user.supplied <- !missing(threshold)
     if(!threshold.user.supplied && "m" %in% plot.type){
         # [FEATURE] Default Manhattan significance threshold; explicit user threshold values keep CMplot behavior.
@@ -935,7 +1004,7 @@ CMplot <- function(
     }
     top.highlight.active <- ((!is.null(highlight) && !is.null(highlight.text)) || !is.null(annotation.file)) && highlight.text.mode == "top"
     highlight_mar <- function(x) {
-        if(top.highlight.active) x[3] <- max(x[3], highlight.text.top.margin)
+        if(top.highlight.active) x[3] <- max(x[3], highlight.text.top.margin + (highlight.text.lanes - 1L) * 2.2)
         if(!is.null(xlab) && nzchar(as.character(xlab)[1])) x[1] <- max(x[1], 5.4)
         x
     }
