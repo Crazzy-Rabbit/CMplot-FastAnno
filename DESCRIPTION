@@ -1,0 +1,37 @@
+Package: CMplotFastAnno
+Type: Package
+Title: CMplot-Compatible Plots with Fast Annotation Support
+Version: 0.1.0
+Authors@R: c(
+    person("CMplot", "contributors", role = "aut"),
+    person("CMplotFastAnno", "maintainers", role = "cre", email = "maintainer@example.com")
+    )
+Author: CMplot contributors and CMplotFastAnno maintainers
+Maintainer: CMplotFastAnno maintainers <maintainer@example.com>
+Description: Provides a CMplot-compatible plotting function for rectangular
+    Manhattan plots, circular Manhattan plots, combined Manhattan and Q-Q plots,
+    Q-Q plots, and marker density plots. The package keeps the original CMplot
+    calling style while adding faster preprocessing, external annotation tables,
+    cleaner top and nearby labels, display-only axis compression for extreme
+    association signals, and clearer significance-line controls. The
+    implementation uses only R packages distributed with base R and does not
+    depend on external CRAN or Bioconductor packages.
+License: GPL-3
+Encoding: UTF-8
+Depends: R (>= 3.5.0)
+Imports:
+    graphics,
+    grDevices,
+    stats,
+    utils
+NeedsCompilation: no
+Collate:
+    'global_variables.R'
+    'plot_utilities.R'
+    'annotation_utilities.R'
+    'marker_density_plot.R'
+    'circular_manhattan_plot.R'
+    'rectangular_manhattan_plot.R'
+    'combined_mqq_plot.R'
+    'qq_plot.R'
+    'CMplot.r'
