@@ -2,7 +2,7 @@
 
 `CMplot-FastAnno` is a [CMplot](https://github.com/YinLiLin/CMplot) modified version focused on faster plotting and cleaner target SNP/gene annotation. Except for the new parameters and display defaults described here, other CMplot behavior is kept consistent with CMplot.
 
-All examples below can be run from the `test` directory.
+The package uses only base R packages: `graphics`, `grDevices`, `stats`, and `utils`.
 
 ## 1. New Features
 
@@ -95,320 +95,301 @@ Rules:
 - TSV and CSV files are supported.
 - Use `annotation.sep` if delimiter detection is not enough.
 
-## 4. New Annotation Parameters
+## Example 1: Rectangular Manhattan
+
+The default rectangular Manhattan plot keeps chromosome-only x-axis labels and
+draws clean genome-wide and suggestive guide lines.
 
 ```r
-highlight.text.mode = c("scatter", "top", "nearby")
-highlight.text.line.mode = c("auto", "straight", "elbow", "none")
-highlight.text.side = c("auto", "left", "right", "alternate")
-
-highlight.text.optimize = TRUE
-highlight.text.lanes = 1
-highlight.text.lane.gap = 0.055
-highlight.text.min.gap = 0.004
-```
-
-Important controls:
-
-| Parameter | Default | Meaning |
-| --- | --- | --- |
-| `highlight.text.mode` | `"scatter"` | legacy scatter labels, top labels, or nearby labels |
-| `highlight.text.line.mode` | `"auto"` | connector style for top/nearby labels |
-| `highlight.text.optimize` | `TRUE` | reduce top-label collisions and connector clutter |
-| `highlight.text.lanes` | `1` | number of top annotation label lanes |
-| `highlight.text.lane.gap` | `0.055` | vertical spacing between annotation lanes |
-| `highlight.text.min.gap` | `0.004` | minimum x-axis spacing between top labels |
-| `highlight.col` | `"red"` | annotated target point color |
-| `highlight.cex` | `1` | annotated point size multiplier |
-| `highlight.text.top.margin` | `8` | top margin reserved for top labels |
-
-Annotated points default to red:
-
-```r
-highlight.col = "red"
-```
-
-Annotated points keep regular point size:
-
-```r
-highlight.cex = 1
-```
-
-Use `highlight.cex` as a multiplier when annotated points should be larger or smaller.
-
-## 5. Threshold Behavior
-
-If `threshold` is omitted for Manhattan plots, CMplot-FastAnno uses:
-
-```r
-threshold = 5e-8
-```
-
-User-defined thresholds keep the original CMplot style:
-
-```r
-threshold = 5e-8
-threshold = c(5e-8, 1e-6)
-threshold = list(5e-8, c(5e-8, 1e-6))
-```
-
-Draw no threshold line:
-
-```r
-threshold = NULL
-```
-
-Threshold-hit point enlargement is off by default:
-
-```r
-amplify = FALSE
-```
-
-Restore enlarged threshold hits:
-
-```r
-amplify = TRUE
-signal.cex = 1.5
-```
-
-## 6. Test Folder
-
-Files:
-
-| File | Purpose |
-| --- | --- |
-| `test/data/pig60K_example.tsv.gz` | Main GWAS test table |
-| `test/data/pig60K_trait1_annotation_targets.tsv` | Separate annotation file |
-| `test/data/pig60K_trait1_top_snps.csv` | Selected top SNPs for examples |
-| `test/create_test_data.R` | Recreate test input files |
-| `test/test_pig60k_annotation.R` | Generate new-feature example figures |
-
-All generated result files are written directly into:
-
-```text
-test/results
-```
-
-No subfolders are created inside `test/results`.
-
-Run:
-
-```r
-Rscript test/test_pig60k_annotation.R
-```
-
-## 7. Basic Setup For Examples
-
-```r
-source("R/CMplot.r")
-
-gwas_data <- read.delim(
-  gzfile("test/data/pig60K_example.tsv.gz"),
-  stringsAsFactors = FALSE,
-  check.names = FALSE
-)
-
-trait_name <- "trait1"
-annotation_file <- "test/data/pig60K_trait1_annotation_targets.tsv"
-threshold <- 5e-8
-```
-
-## 8. Top Annotation From Separate File
-
-This mode reads target SNP labels from `annotation.file`, places labels above the plot, and connects them to target points.
-
-```r
-CMplot(
-  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
+run_plot(list(
+  Pmap = trait1_data,
   plot.type = "m",
   LOG10 = TRUE,
-  threshold = threshold,
-  annotation.file = annotation_file,
+  sig.line = TRUE,
+  suggestive.line = TRUE,
+  file = "png",
+  file.name = "readme_01_rectangular_manhattan",
+  width = 11.8,
+  height = 3.65,
+  dpi = 240,
+  verbose = FALSE
+))
+```
+
+![Rectangular Manhattan plot](image/readme/Rect_Manhtn.readme_01_rectangular_manhattan.png)
+
+## Example 2: Q-Q Plot
+
+The Q-Q plot keeps the CMplot interface while using the optimized confidence
+interval calculation.
+
+```r
+run_plot(list(
+  Pmap = trait1_data,
+  plot.type = "q",
+  LOG10 = TRUE,
+  threshold.col = "#4D4D4D",
+  threshold.lwd = 0.9,
+  conf.int.col = "#A9C9DF",
+  file = "png",
+  file.name = "readme_02_qq",
+  width = 4.8,
+  height = 4.8,
+  dpi = 240,
+  verbose = FALSE
+))
+```
+
+![Q-Q plot](image/readme/QQplot.readme_02_qq.png)
+
+## Example 3: Combined Manhattan Plus Q-Q
+
+`plot.type = "mqq"` creates a Manhattan panel and a Q-Q panel in one output
+file. Use `mqqratio` to control the relative panel widths.
+
+```r
+run_plot(list(
+  Pmap = trait1_data,
+  plot.type = "mqq",
+  LOG10 = TRUE,
+  sig.line = TRUE,
+  suggestive.line = TRUE,
+  mqqratio = c(3.15, 1),
+  conf.int.col = "#A9C9DF",
+  file = "png",
+  file.name = "readme_05_mqq",
+  width = 12.0,
+  height = 3.7,
+  dpi = 240,
+  verbose = FALSE
+))
+```
+
+![Combined Manhattan and Q-Q plot](image/readme/MQQplot.readme_05_mqq.png)
+
+## Example 4: Combined Q-Q Plus Manhattan
+
+`plot.type = "qqm"` reverses the panel order while keeping the same styling and
+threshold controls.
+
+```r
+run_plot(list(
+  Pmap = trait1_data,
+  plot.type = "qqm",
+  LOG10 = TRUE,
+  sig.line = TRUE,
+  suggestive.line = TRUE,
+  mqqratio = c(1, 3.15),
+  conf.int.col = "#A9C9DF",
+  file = "png",
+  file.name = "readme_06_qqm",
+  width = 12.0,
+  height = 3.7,
+  dpi = 240,
+  verbose = FALSE
+))
+```
+
+![Combined Q-Q and Manhattan plot](image/readme/QQMplot.readme_06_qqm.png)
+
+## Example 5: Already-Scaled Input With Skip And Cut
+
+Use `scaled = TRUE` when the trait column is already `-log10(P)`. Threshold
+arguments such as `sig.level`, `suggestive.level`, `additional.line`, and
+`threshold` still remain on the p-value scale when `LOG10 = TRUE`.
+
+```r
+run_plot(list(
+  Pmap = scaled_data,
+  plot.type = "m",
+  scaled = TRUE,
+  sig.line = TRUE,
+  suggestive.line = TRUE,
+  additional.line = 1e-4,
+  additional.line.col = "#C58F62",
+  additional.line.lty = 3,
+  skip = 1.5,
+  cut = 8,
+  cutfactor = 4,
+  file = "png",
+  file.name = "readme_07_scaled_skip_cut",
+  width = 11.8,
+  height = 3.65,
+  dpi = 240,
+  verbose = FALSE
+))
+```
+
+![Scaled input with skip and cut](image/readme/Rect_Manhtn.readme_07_scaled_skip_cut.png)
+
+## Example 6: Combined Plot With Compressed Extreme Values
+
+`skip`, `cut`, and `cutfactor` transform display coordinates only. The original
+values are still used for matching highlights, labels, and significance rules.
+
+```r
+run_plot(list(
+  Pmap = scaled_data,
+  plot.type = "qqm",
+  scaled = TRUE,
+  skip = 1.5,
+  cut = 8,
+  cutfactor = 4,
+  sig.line = TRUE,
+  suggestive.line = TRUE,
+  mqqratio = c(1, 3.15),
+  conf.int.col = "#A9C9DF",
+  file = "png",
+  file.name = "readme_08_qqm_scaled",
+  width = 12.0,
+  height = 3.7,
+  dpi = 240,
+  verbose = FALSE
+))
+```
+
+![Combined Q-Q and Manhattan with compressed values](image/readme/QQMplot.readme_08_qqm_scaled.png)
+
+## Example 7: Annotation Table With Top Labels
+
+Annotations can be supplied as a data frame or as a CSV/TSV file. Use
+`annotation.snp.col`, `annotation.label.col`, and `annotation.trait.col` when
+the column names need to be explicit.
+
+```r
+run_plot(list(
+  Pmap = trait1_data,
+  plot.type = "m",
+  LOG10 = TRUE,
+  annotation.file = annotation_targets[1:8, ],
   annotation.snp.col = "SNP",
-  annotation.label.col = "Label",
+  annotation.label.col = "Gene",
   annotation.trait.col = "Trait",
   highlight.text.mode = "top",
   highlight.text.line.mode = "auto",
   highlight.text.optimize = TRUE,
+  highlight.text.lanes = 2,
+  highlight.text.top.inside = TRUE,
+  highlight.text.top.margin = 6,
+  sig.line = TRUE,
+  suggestive.line = TRUE,
   file = "png",
-  file.name = "pig60K_trait1_top_annotation"
-)
+  file.name = "readme_10_annotation_table_top",
+  width = 11.8,
+  height = 3.9,
+  dpi = 240,
+  verbose = FALSE
+))
 ```
 
-Result:
+![Annotation table with top labels](image/readme/Rect_Manhtn.readme_10_annotation_table_top.png)
 
-![Top annotation from file](test/results/Rect_Manhtn.pig60K_trait1_top_annotation.png)
+## Example 8: Nearby Labels
 
-## 9. Stronger Collision Avoidance
-
-`highlight.text.optimize = TRUE` globally spaces top labels along the x-axis before drawing connectors. This reduces label overlap and keeps connectors more orderly.
+Nearby labels place text beside target points. `highlight.text.side = "auto"`
+chooses the side from the target position.
 
 ```r
-CMplot(
-  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
+run_plot(list(
+  Pmap = trait1_data,
   plot.type = "m",
   LOG10 = TRUE,
-  threshold = threshold,
-  annotation.file = annotation_file,
-  annotation.snp.col = "SNP",
-  annotation.label.col = "Label",
-  annotation.trait.col = "Trait",
-  highlight.text.mode = "top",
-  highlight.text.optimize = TRUE,
-  highlight.text.min.gap = 0.006,
-  highlight.text.line.mode = "auto",
-  file = "png",
-  file.name = "pig60K_trait1_top_annotation"
-)
-```
-
-Result:
-
-![Collision avoidance](test/results/Rect_Manhtn.pig60K_trait1_top_annotation.png)
-
-## 10. Multi-Layer Annotation Lanes
-
-Use `highlight.text.lanes` when many labels compete for the same top region. Labels are first collision-avoided on the x-axis, then distributed across lanes.
-
-```r
-CMplot(
-  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
-  plot.type = "m",
-  LOG10 = TRUE,
-  threshold = threshold,
-  annotation.file = annotation_file,
-  annotation.snp.col = "SNP",
-  annotation.label.col = "Label",
-  annotation.trait.col = "Trait",
-  highlight.text.mode = "top",
-  highlight.text.optimize = TRUE,
-  highlight.text.lanes = 3,
-  highlight.text.lane.gap = 0.055,
-  highlight.text.min.gap = 0.006,
-  highlight.text.line.mode = "auto",
-  highlight.text.top.margin = 12,
-  file = "png",
-  file.name = "pig60K_trait1_lanes3_annotation"
-)
-```
-
-Result:
-
-![Three-lane annotation](test/results/Rect_Manhtn.pig60K_trait1_lanes3_annotation.png)
-
-## 11. Connector Line Modes
-
-`highlight.text.line.mode` controls how top labels connect to target points.
-
-### `auto`
-
-Uses a straight connector when the label is nearly aligned with the point; otherwise uses an elbow-style connector.
-
-```r
-highlight.text.line.mode = "auto"
-```
-
-![Line mode auto](test/results/Rect_Manhtn.pig60K_trait1_line_auto.png)
-
-### `straight`
-
-Draws direct straight connectors.
-
-```r
-highlight.text.line.mode = "straight"
-```
-
-![Line mode straight](test/results/Rect_Manhtn.pig60K_trait1_line_straight.png)
-
-### `elbow`
-
-Always uses the upper arm plus vertical drop style.
-
-```r
-highlight.text.line.mode = "elbow"
-```
-
-![Line mode elbow](test/results/Rect_Manhtn.pig60K_trait1_line_elbow.png)
-
-### `none`
-
-Draws labels and target points without connector lines.
-
-```r
-highlight.text.line.mode = "none"
-```
-
-![Line mode none](test/results/Rect_Manhtn.pig60K_trait1_line_none.png)
-
-## 12. Nearby Annotation
-
-Nearby mode places labels beside target points instead of above the whole plot.
-
-```r
-top_hits <- read.csv("test/data/pig60K_trait1_top_snps.csv", stringsAsFactors = FALSE)
-
-CMplot(
-  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
-  plot.type = "m",
-  LOG10 = TRUE,
-  threshold = threshold,
-  highlight = top_hits$SNP,
-  highlight.text = top_hits$SNP,
+  highlight = annotation_targets$SNP[1:8],
+  highlight.text = annotation_targets$Gene[1:8],
   highlight.text.mode = "nearby",
   highlight.text.side = "auto",
-  highlight.text.line.mode = "auto",
+  highlight.text.line.mode = "elbow",
+  highlight.text.nearby.offset = 0.014,
+  sig.line = TRUE,
+  suggestive.line = TRUE,
   file = "png",
-  file.name = "pig60K_trait1_nearby_annotation"
-)
+  file.name = "readme_11_nearby_labels",
+  width = 11.8,
+  height = 3.9,
+  dpi = 240,
+  verbose = FALSE
+))
 ```
 
-Result:
+![Nearby annotation labels](image/readme/Rect_Manhtn.readme_11_nearby_labels.png)
 
-![Nearby annotation](test/results/Rect_Manhtn.pig60K_trait1_nearby_annotation.png)
+## Example 9: Scatter Labels
 
-## 13. Default Threshold And Default Point Size
-
-This example omits `threshold`. CMplot-FastAnno draws the default `5e-8` line, and threshold-exceeding points keep their normal size because `amplify = FALSE`.
+The legacy CMplot scatter-label mode is still available for compatibility.
 
 ```r
-CMplot(
-  gwas_data[, c("SNP", "Chromosome", "Position", trait_name)],
+run_plot(list(
+  Pmap = trait1_data,
   plot.type = "m",
   LOG10 = TRUE,
+  highlight = annotation_targets$SNP[1:8],
+  highlight.text = annotation_targets$Gene[1:8],
+  highlight.text.mode = "scatter",
+  sig.line = TRUE,
+  suggestive.line = TRUE,
   file = "png",
-  file.name = "pig60K_trait1_threshold_default_size"
-)
+  file.name = "readme_12_scatter_labels",
+  width = 11.8,
+  height = 3.9,
+  dpi = 240,
+  verbose = FALSE
+))
 ```
 
-Result:
+![Scatter annotation labels](image/readme/Rect_Manhtn.readme_12_scatter_labels.png)
 
-![Default threshold and size](test/results/Rect_Manhtn.pig60K_trait1_threshold_default_size.png)
+## Example 10: Multi-Track Top Annotation
 
-## 14. Multi-Track Annotation
-
-Top annotation also works with `multracks = TRUE`. Annotated points remain red and keep normal point size by default.
+For multi-trait plots, pass `highlight` and `highlight.text` as lists with one
+element per trait.
 
 ```r
-top_hits <- read.csv("test/data/pig60K_trait1_top_snps.csv", stringsAsFactors = FALSE)
-
-CMplot(
-  gwas_data,
+run_plot(list(
+  Pmap = multi_data,
   plot.type = "m",
   multracks = TRUE,
   LOG10 = TRUE,
-  threshold = threshold,
-  highlight = top_hits$SNP,
-  highlight.text = top_hits$SNP,
+  highlight = highlight_by_trait,
+  highlight.text = highlight_text_by_trait,
   highlight.text.mode = "top",
   highlight.text.line.mode = "auto",
   highlight.text.optimize = TRUE,
-  highlight.col = "red",
-  highlight.cex = 1,
+  highlight.text.lanes = 2,
+  highlight.text.top.inside = TRUE,
+  highlight.text.cex = 0.54,
+  highlight.text.top.cex = 0.66,
+  sig.line = TRUE,
+  suggestive.line = TRUE,
+  width = 11.8,
+  height = 2.25,
+  dpi = 240,
   file = "png",
-  file.name = "pig60K_multitrack_top_annotation"
-)
+  file.name = "readme_13_multitrack_top_annotation",
+  verbose = FALSE
+))
 ```
 
-Result:
+![Multi-track top annotation](image/readme/Multi-tracks_Manhtn.readme_13_multitrack_top_annotation.png)
 
-![Multi-track top annotation](test/results/Multi-tracks_Manhtn.pig60K_multitrack_top_annotation.png)
+## Example 11: Q-Q Diagonal Line Width
+
+The Q-Q reference diagonal correctly uses `threshold.lwd`, so line width can be
+controlled the same way as other threshold guides.
+
+```r
+run_plot(list(
+  Pmap = trait1_data,
+  plot.type = "q",
+  LOG10 = TRUE,
+  threshold.col = "#333333",
+  threshold.lwd = 2.8,
+  threshold.lty = 2,
+  conf.int.col = "#A9C9DF",
+  file = "png",
+  file.name = "readme_14_qq_diagonal_lwd",
+  width = 4.8,
+  height = 4.8,
+  dpi = 240,
+  verbose = FALSE
+))
+```
